@@ -47,60 +47,90 @@ public class Test implements LearningEventListener {
 	int tieCounter = 0;
 	final int MAXITER = 20000;
 	public static void main(String[] args) throws IOException {
-		new Test().run(1,"SinCos1000.csv","SinCosRand1000.csv", "TestRunOutput.txt");
+		new Test().run(1,"SinCos1000.csv","SinCosRand1000.csv", "TestRunOutput.txt", "Summary.txt");
+	}
+
+	public static void createRandomFile(int size){
+		try {
+			BufferedWriter rw = new BufferedWriter(new FileWriter("SinCosRand"+size+".csv"));
+
+			double x = 0;
+			double step = (2*Math.PI)/size;
+			for(int i = 0 ; i < size; i++){
+				rw.write(x+","+(Math.random()*2-1)+","+(Math.sin(x)*Math.cos(2*x))+"\n");
+				x += step;
+			}
+			rw.close();
+
+		} catch (IOException e) {
+			System.out.println("Error generating new random file.");
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * Runs this sample
 	 * @throws IOException 
 	 */
-	public void run(int inputNodes, String filename, String randomFileName, String outputFile) throws IOException {
+	public void run(int inputNodes, String filename, String randomFileName, String outputFile, String outputSumFile) throws IOException {
 		final int NODESINHIDDEN = 3;
 		final int INPUTNODES = 1;
 		final int OUTPUTNODES = 1;
-		final int NUMTESTS = 100;
+		final int NUMTESTSPERDATASET = 10;
+		final int NUMDATASETS = 2;
+		final int FILESIZE = 1000;
 		br = new BufferedWriter(new FileWriter(outputFile));
-		for(int j = 0; j < NUMTESTS; j++){
-			// create training set (logical XOR function)
-			DataSet trainingSet = DataSet.createFromFile(filename, 1,1, ",", false);
-			DataSet randomTrainingSet = DataSet.createFromFile(randomFileName, 2,1,",",false);
-			// create multi layer perceptron
-			MultiLayerPerceptron myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES, NODESINHIDDEN, OUTPUTNODES);
-			BackPropagation learningRule = createLearningRule();
-			myMlPerceptron.setLearningRule(learningRule);
-			myMlPerceptron.randomizeWeights();
-			Double[] initialWeights = myMlPerceptron.getWeights();
+		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
+		for(int k = 0; k < NUMDATASETS; k++){
+			createRandomFile(FILESIZE);
+			for(int j = 0; j < NUMTESTSPERDATASET; j++){
+				// create training set (logical XOR function)
+				DataSet trainingSet = DataSet.createFromFile(filename, 1,1, ",", false);
+				DataSet randomTrainingSet = DataSet.createFromFile(randomFileName, 2,1,",",false);
+				// create multi layer perceptron
+				MultiLayerPerceptron myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES, NODESINHIDDEN, OUTPUTNODES);
+				BackPropagation learningRule = createLearningRule();
+				myMlPerceptron.setLearningRule(learningRule);
+				myMlPerceptron.randomizeWeights();
+				Double[] initialWeights = myMlPerceptron.getWeights();
 
-			// learn the training set
-			System.out.println("Training neural network for first time...");
-			myMlPerceptron.learn(trainingSet);
+				// learn the training set
+				System.out.println("Training neural network for " + j + " time...");
+				myMlPerceptron.learn(trainingSet);
 
-			myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES+1, NODESINHIDDEN, OUTPUTNODES);
-			myMlPerceptron.setLearningRule(learningRule);
-			myMlPerceptron.randomizeWeights();
-			Double[] randomWeights = myMlPerceptron.getWeights();
-			int newWeightLength = initialWeights.length+NODESINHIDDEN;
-			double[] stupidArray = new double[newWeightLength];
-			for(int i = 0; i < newWeightLength; i++){
-				if(i < NODESINHIDDEN){
-					stupidArray[i] = initialWeights[i];
+				myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES+1, NODESINHIDDEN, OUTPUTNODES);
+				myMlPerceptron.setLearningRule(learningRule);
+				myMlPerceptron.randomizeWeights();
+				Double[] randomWeights = myMlPerceptron.getWeights();
+				int newWeightLength = initialWeights.length+NODESINHIDDEN;
+				double[] stupidArray = new double[newWeightLength];
+				for(int i = 0; i < newWeightLength; i++){
+					if(i < NODESINHIDDEN){
+						stupidArray[i] = initialWeights[i];
+					}
+					else if(i < 2*NODESINHIDDEN){
+						stupidArray[i] = randomWeights[i];
+					}else{ 
+						stupidArray[i] = initialWeights[i-NODESINHIDDEN];
+					}
+
 				}
-				else if(i < 2*NODESINHIDDEN){
-					stupidArray[i] = randomWeights[i];
-				}else{ 
-					stupidArray[i] = initialWeights[i-NODESINHIDDEN];
-				}
-
+				myMlPerceptron.setWeights(stupidArray);
+				myMlPerceptron.learn(randomTrainingSet);
 			}
-			myMlPerceptron.setWeights(stupidArray);
-			myMlPerceptron.learn(randomTrainingSet);
+			System.out.println("Test finished:" + nonRandomCounter + " instances of non-random, "
+					+ randomCounter + " instances of randomCounter");
+			System.out.println("There are " + tieCounter + " ties");
+			System.out.println("Number of tests: " + NUMTESTSPERDATASET);
+			brsum.write(nonRandomCounter + "," + randomCounter +"," + tieCounter+"\n");
+			randomCounter = nonRandomCounter = tieCounter = 0;
+			br.write("---------------------------------------------\n");
 		}
+		brsum.flush();
+		brsum.close();
 		br.flush();
 		br.close();
-		System.out.println("Test finished:" + nonRandomCounter + " instances of non-random, "
-				+ randomCounter + " instances of randomCounter");
-		System.out.println("There are " + tieCounter + " ties");
-		System.out.println("Number of tests: " + NUMTESTS);
+
 
 	}
 	public BackPropagation createLearningRule(){
@@ -153,7 +183,7 @@ public class Test implements LearningEventListener {
 					br.write(firstIterations + "," +firstError + "," + bp.getCurrentIteration() + "," + bp.getTotalNetworkError()+ "\n");
 				}
 				catch (IOException e) {
-				// TODO Auto-generated catch block
+					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
