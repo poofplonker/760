@@ -52,7 +52,7 @@ public class Test implements LearningEventListener {
 		final int INPUTNODES = 1;
 		final int OUTPUTNODES = 1;
 		br = new BufferedWriter(new FileWriter(outputFile));
-		for(int j = 0; j < 100; j++){
+		for(int j = 0; j < 10; j++){
 			// create training set (logical XOR function)
 			DataSet trainingSet = DataSet.createFromFile(filename, 1,1, ",", false);
 			DataSet randomTrainingSet = DataSet.createFromFile(randomFileName, 2,1,",",false);
@@ -84,6 +84,8 @@ public class Test implements LearningEventListener {
 			myMlPerceptron.setWeights(stupidArray);
 			myMlPerceptron.learn(randomTrainingSet);
 		}
+		br.flush();
+		br.close();
 
 	}
 	public BackPropagation createLearningRule(){
