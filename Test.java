@@ -45,6 +45,8 @@ public class Test implements LearningEventListener {
 	int nonRandomCounter = 0;
 	int randomCounter = 0;
 	int tieCounter = 0;
+	double firstTestError;
+	double secondTestError;
 	final int MAXITER = 20000;
 	public static void main(String[] args) throws IOException {
 		new Test().run(1,"SinCos1000.csv","SinCosRand1000.csv", "TestRunOutput.txt", "Summary.txt");
@@ -81,6 +83,10 @@ public class Test implements LearningEventListener {
 		final int FILESIZE = 1000;
 		br = new BufferedWriter(new FileWriter(outputFile));
 		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
+		
+		createRandomFile(FILESIZE*10);
+		DataSet testSetRand = DataSet.createFromFile("SinCosRand10000.csv",2,1, ",",false);
+		DataSet testSetNonRand = DataSet.createFromFile("SinCos10000.csv", 1, 1, ",", false);
 		for(int k = 0; k < NUMDATASETS; k++){
 			createRandomFile(FILESIZE);
 			for(int j = 0; j < NUMTESTSPERDATASET; j++){
@@ -97,11 +103,13 @@ public class Test implements LearningEventListener {
 				// learn the training set
 				System.out.println("Training neural network for " + j + " time...");
 				myMlPerceptron.learn(trainingSet);
+				firstTestError = Test.testNeuralNetwork(myMlPerceptron, testSetNonRand);
 
 				myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES+1, NODESINHIDDEN, OUTPUTNODES);
 				myMlPerceptron.setLearningRule(learningRule);
 				myMlPerceptron.randomizeWeights();
 				Double[] randomWeights = myMlPerceptron.getWeights();
+				
 				int newWeightLength = initialWeights.length+NODESINHIDDEN;
 				double[] stupidArray = new double[newWeightLength];
 				for(int i = 0; i < newWeightLength; i++){
@@ -117,6 +125,8 @@ public class Test implements LearningEventListener {
 				}
 				myMlPerceptron.setWeights(stupidArray);
 				myMlPerceptron.learn(randomTrainingSet);
+				secondTestError = Test.testNeuralNetwork(myMlPerceptron, testSetRand);
+				br.write(firstTestError + "," + secondTestError + "\n");
 			}
 			System.out.println("Test finished:" + nonRandomCounter + " instances of non-random, "
 					+ randomCounter + " instances of randomCounter");
@@ -138,7 +148,7 @@ public class Test implements LearningEventListener {
 		learningRule.addListener(this);
 		learningRule.setLearningRate(0.1);
 		learningRule.setMaxError(0.001);
-		learningRule.setMaxIterations(20000);
+		learningRule.setMaxIterations(MAXITER);
 		learningRule.setBatchMode(false);
 		return learningRule;
 	}
@@ -147,16 +157,25 @@ public class Test implements LearningEventListener {
 	 * @param neuralNet neural network
 	 * @param trainingSet training set
 	 */
-	public static void testNeuralNetwork(NeuralNetwork neuralNet, DataSet testSet) {
-
+	public static double testNeuralNetwork(NeuralNetwork neuralNet, DataSet testSet) {
+		double error = 0;
 		for(DataSetRow testSetRow : testSet.getRows()) {
 			neuralNet.setInput(testSetRow.getInput());
 			neuralNet.calculate();
 			double[] networkOutput = neuralNet.getOutput();
+			double[] desiredOutput = testSetRow.getDesiredOutput();
 
-			System.out.print("Input: " + Arrays.toString( testSetRow.getInput() ) );
-			System.out.println(" Output: " + Arrays.toString( networkOutput) );
+			//System.out.print("Input: " + Arrays.toString( testSetRow.getInput() ) );
+			//System.out.println(" Output: " + Arrays.toString( networkOutput) );
+
+			for(int i = 0; i < networkOutput.length; i++){
+				//System.out.println("Error: " + Math.abs(networkOutput[i] - desiredOutput[i]));
+				error += Math.abs(networkOutput[i] - desiredOutput[i]);
+			}
+			
 		}
+		System.out.println("Error for this case: " + error);
+		return error;
 	}
 
 	@Override
@@ -180,7 +199,7 @@ public class Test implements LearningEventListener {
 						br.write("tie,");
 						tieCounter++;
 					}
-					br.write(firstIterations + "," +firstError + "," + bp.getCurrentIteration() + "," + bp.getTotalNetworkError()+ "\n");
+					br.write(firstIterations + "," +firstError + "," + bp.getCurrentIteration() + "," + bp.getTotalNetworkError()+",");
 				}
 				catch (IOException e) {
 					// TODO Auto-generated catch block
