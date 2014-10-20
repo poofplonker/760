@@ -39,6 +39,13 @@ import org.neuroph.util.TransferFunctionType;
 public class Test implements LearningEventListener {
 
 	BufferedWriter br;
+	boolean firstTime = false;
+	double firstError;
+	int firstIterations;
+	int nonRandomCounter = 0;
+	int randomCounter = 0;
+	int tieCounter = 0;
+	final int MAXITER = 20000;
 	public static void main(String[] args) throws IOException {
 		new Test().run(1,"SinCos1000.csv","SinCosRand1000.csv", "TestRunOutput.txt");
 	}
@@ -51,8 +58,9 @@ public class Test implements LearningEventListener {
 		final int NODESINHIDDEN = 3;
 		final int INPUTNODES = 1;
 		final int OUTPUTNODES = 1;
+		final int NUMTESTS = 100;
 		br = new BufferedWriter(new FileWriter(outputFile));
-		for(int j = 0; j < 10; j++){
+		for(int j = 0; j < NUMTESTS; j++){
 			// create training set (logical XOR function)
 			DataSet trainingSet = DataSet.createFromFile(filename, 1,1, ",", false);
 			DataSet randomTrainingSet = DataSet.createFromFile(randomFileName, 2,1,",",false);
@@ -60,6 +68,7 @@ public class Test implements LearningEventListener {
 			MultiLayerPerceptron myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES, NODESINHIDDEN, OUTPUTNODES);
 			BackPropagation learningRule = createLearningRule();
 			myMlPerceptron.setLearningRule(learningRule);
+			myMlPerceptron.randomizeWeights();
 			Double[] initialWeights = myMlPerceptron.getWeights();
 
 			// learn the training set
@@ -68,6 +77,8 @@ public class Test implements LearningEventListener {
 
 			myMlPerceptron = new MultiLayerPerceptron(TransferFunctionType.TANH, INPUTNODES+1, NODESINHIDDEN, OUTPUTNODES);
 			myMlPerceptron.setLearningRule(learningRule);
+			myMlPerceptron.randomizeWeights();
+			Double[] randomWeights = myMlPerceptron.getWeights();
 			int newWeightLength = initialWeights.length+NODESINHIDDEN;
 			double[] stupidArray = new double[newWeightLength];
 			for(int i = 0; i < newWeightLength; i++){
@@ -75,7 +86,7 @@ public class Test implements LearningEventListener {
 					stupidArray[i] = initialWeights[i];
 				}
 				else if(i < 2*NODESINHIDDEN){
-					stupidArray[i] = 0;
+					stupidArray[i] = randomWeights[i];
 				}else{ 
 					stupidArray[i] = initialWeights[i-NODESINHIDDEN];
 				}
@@ -86,6 +97,10 @@ public class Test implements LearningEventListener {
 		}
 		br.flush();
 		br.close();
+		System.out.println("Test finished:" + nonRandomCounter + " instances of non-random, "
+				+ randomCounter + " instances of randomCounter");
+		System.out.println("There are " + tieCounter + " ties");
+		System.out.println("Number of tests: " + NUMTESTS);
 
 	}
 	public BackPropagation createLearningRule(){
@@ -117,13 +132,32 @@ public class Test implements LearningEventListener {
 	@Override
 	public void handleLearningEvent(LearningEvent event) {
 		BackPropagation bp = (BackPropagation)event.getSource();
-		if (event.getEventType() == LearningEventType.LEARNING_STOPPED)
-			try {
-				br.write(bp.getCurrentIteration() + ". iteration : "+ bp.getTotalNetworkError());
-			} catch (IOException e) {
+		if (event.getEventType() == LearningEventType.LEARNING_STOPPED){
+			if(firstTime == false){
+				firstTime = true;
+				firstIterations = bp.getCurrentIteration();
+				firstError = bp.getTotalNetworkError();
+			}else{
+				firstTime = false;
+				try{
+					if(firstIterations < MAXITER && bp.getCurrentIteration() == MAXITER){
+						br.write("non-random," );
+						nonRandomCounter++;
+					}else if(firstIterations == MAXITER && bp.getCurrentIteration() < MAXITER){
+						br.write("random," );
+						randomCounter++;
+					}else{
+						br.write("tie,");
+						tieCounter++;
+					}
+					br.write(firstIterations + "," +firstError + "," + bp.getCurrentIteration() + "," + bp.getTotalNetworkError()+ "\n");
+				}
+				catch (IOException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+					e.printStackTrace();
+				}
 			}
+		}
 	}    
 
 }
