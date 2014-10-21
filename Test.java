@@ -26,8 +26,8 @@ public class Test implements LearningEventListener {
 	final int NODESINHIDDEN = 3;
 	final int INPUTNODES = 1;
 	final int OUTPUTNODES = 1;
-	final int NUMTESTSPERDATASET = 100;
-	final int NUMDATASETS = 500;
+	final int NUMTESTSPERDATASET = 5;
+	final int NUMDATASETS = 3;
 	final int FILESIZE = 1000;
 	final int TESTINGSIZE = FILESIZE * 10;
 	final int MAXITER = 20000;
@@ -39,6 +39,8 @@ public class Test implements LearningEventListener {
 	boolean firstTime = false;
 	double firstError;
 	int firstIterations;
+	double secondError;
+	int secondIterations;
 	int nonRandomCounter = 0;
 	int randomCounter = 0;
 	int tieCounter = 0;
@@ -50,7 +52,6 @@ public class Test implements LearningEventListener {
 	 */
 	public static void main(String[] args) throws IOException {
 		new Test().run("SinCos", "Rand", ".csv", "TestRunOutput.csv", "Summary.csv");
-		//createRandomData(1,"SinCos1000.csv");
 	}
 	
 	/**
@@ -181,9 +182,21 @@ public class Test implements LearningEventListener {
 				//Run random network
 				myMlPerceptron.learn(randomTrainingSet);
 				secondTestError = Test.testNeuralNetwork(myMlPerceptron, testSetRand);
-				
-				//Write the errors to the stats file
-				bw.write(firstTestError + "," + secondTestError + "\n");
+								
+				//Determine who wins and output the stats to file
+				if(firstIterations < MAXITER && secondIterations == MAXITER && firstTestError < secondTestError){
+					bw.write("non-random," );
+					nonRandomCounter++;
+				}else if(firstIterations == MAXITER && secondIterations < MAXITER && firstTestError > secondTestError){
+					bw.write("random," );
+					randomCounter++;
+				}else{
+					bw.write("tie,");
+					tieCounter++;
+				}
+				bw.write(firstIterations + "," +firstError + "," + secondIterations + "," + secondError+","+
+						firstTestError+","+secondTestError+"\n");
+
 			}
 			
 			//Print the results of the data set
@@ -255,23 +268,8 @@ public class Test implements LearningEventListener {
 				firstError = bp.getTotalNetworkError();
 			}else{
 				firstTime = false;
-				try{
-					//Determine who wins and output the stats to file
-					if(firstIterations < MAXITER && bp.getCurrentIteration() == MAXITER){
-						bw.write("non-random," );
-						nonRandomCounter++;
-					}else if(firstIterations == MAXITER && bp.getCurrentIteration() < MAXITER){
-						bw.write("random," );
-						randomCounter++;
-					}else{
-						bw.write("tie,");
-						tieCounter++;
-					}
-					bw.write(firstIterations + "," +firstError + "," + bp.getCurrentIteration() + "," + bp.getTotalNetworkError()+",");
-				}
-				catch (IOException e) {
-					e.printStackTrace();
-				}
+				secondIterations = bp.getCurrentIteration();
+				secondError = bp.getTotalNetworkError();
 			}
 		}
 	}    
