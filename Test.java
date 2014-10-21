@@ -1,4 +1,6 @@
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -17,18 +19,21 @@ import org.neuroph.util.TransferFunctionType;
  * with a standard neural network on the Sin(x)Cos(2x) problem.
  *  
  * @author Michael Glenny <michaelglenny@gmail.com>
- * @author Laurence Mcfarlane <lmcf013@aucklanduni.ac.nz>
+ * @author Laurence McFarlane <lmcf013@aucklanduni.ac.nz>
  */
 public class Test implements LearningEventListener {
 	//Constant Parameters for the neural network
 	final int NODESINHIDDEN = 3;
 	final int INPUTNODES = 1;
 	final int OUTPUTNODES = 1;
-	final int NUMTESTSPERDATASET = 2;
+	final int NUMTESTSPERDATASET = 5;
 	final int NUMDATASETS = 2;
 	final int FILESIZE = 1000;
 	final int TESTINGSIZE = FILESIZE * 10;
 	final int MAXITER = 20000;
+	final double LEARNINGRATE = 0.1;
+	final double MAXERROR = 0.0005;
+
 	
 	//Vars used to output formated stats 
 	BufferedWriter bw;
@@ -46,38 +51,59 @@ public class Test implements LearningEventListener {
 	 */
 	public static void main(String[] args) throws IOException {
 		new Test().run("SinCos", "Rand", ".csv", "TestRunOutput.csv", "Summary.csv");
+		//createRandomData(1,"SinCos1000.csv");
 	}
-
+	
 	/**
-	 * Creates a file with sin(x)cos(2x) and possibly extra random data between 0 and 2pi
-	 * in format:
-	 * 	x,Rand{-1,1},sin(x)cos(2x)
-	 * or:
+	 * Takes a file of comma separated data and add a random column. Then saves this file.
+	 * @param beforeColumn The random data will be inserted before this column.
+	 * @param prefix The string prefix for both random and non random data.
+	 * @param randomfix The random part of the string. Goes after prefix.
+	 * @param postfix The end of the file name for both random and non random data.
+	 */
+	public static void createRandomDataFile(int beforeColumn, String prefix, String randomfix, String postfix){
+		try {
+			BufferedReader nonRandomReader = new BufferedReader(new FileReader(prefix+postfix));
+			BufferedWriter randomWriter = new BufferedWriter(new FileWriter(prefix+randomfix+postfix));
+			
+			String inputLine = null;
+			while ((inputLine = nonRandomReader.readLine()) != null) {
+				int splitIndex = 0;
+				for(int i = 0; i < beforeColumn; i++){
+					splitIndex = inputLine.indexOf(",", splitIndex+1);
+				}
+				String output = inputLine.substring(0, splitIndex+1) + (Math.random()*2-1) + inputLine.substring(splitIndex, inputLine.length());
+				randomWriter.write(output+"\n");
+			}
+			
+			nonRandomReader.close();
+			randomWriter.close();
+		} catch (IOException e) {
+			System.out.println("Error generating dataset file.");
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Creates a file with sin(x)cos(2x) and data between 0 and 2pi in the format
 	 *  x,sin(x)cos(2x)
 	 * @param size the number of steps between 0 and 2pi
-	 * @param file the name of the file to write to
+	 * @param file The name of the file the data will be stored in.
 	 */
-	public static void createDataSetFile(int size, String file, boolean random){
+	public static void createDataSetFile(int size, String file){
 		try {
 			BufferedWriter rw = new BufferedWriter(new FileWriter(file));
 
 			double x = 0;
 			double step = (2*Math.PI)/size;
-			if(random){
-				for(int i = 0 ; i < size; i++){
-					rw.write(x+","+(Math.random()*2-1)+","+(Math.sin(x)*Math.cos(2*x))+"\n");
-					x += step;
-				}
-			}else{
-				for(int i = 0 ; i < size; i++){
-					rw.write(x+","+(Math.sin(x)*Math.cos(2*x))+"\n");
-					x += step;
-				}
+			for(int i = 0 ; i < size; i++){
+				rw.write(x+","+(Math.sin(x)*Math.cos(2*x))+"\n");
+				x += step;
 			}
 			rw.close();
 
 		} catch (IOException e) {
-			System.out.println("Error generating new random file.");
+			System.out.println("Error generating dataset file.");
 			e.printStackTrace();
 		}
 	}
@@ -94,20 +120,20 @@ public class Test implements LearningEventListener {
 		bw = new BufferedWriter(new FileWriter(outputFile));
 		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
 		
-		//Create the training data set
-		createDataSetFile(FILESIZE, prefix + FILESIZE + postfix, false);
+		//Create the training data set for the non random case
+		createDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
+		createDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
 		
 		//Creating the verification files
-		createDataSetFile(TESTINGSIZE, prefix + randomfix + TESTINGSIZE + postfix, true);
+		createRandomDataFile(1, prefix, randomfix, TESTINGSIZE + postfix);
 		DataSet testSetRand = DataSet.createFromFile(prefix + randomfix + TESTINGSIZE + postfix,2,1, ",",false);
-		createDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix, false);
 		DataSet testSetNonRand = DataSet.createFromFile(prefix + TESTINGSIZE + postfix, 1, 1, ",", false);
 		
 		//Learn on data sets with different random data in them
 		for(int k = 0; k < NUMDATASETS; k++){
 			
 			//Create the random dataset
-			createDataSetFile(FILESIZE, prefix + randomfix + FILESIZE + postfix, true);
+			createRandomDataFile(1, prefix, randomfix, FILESIZE + postfix);
 			
 			//Set initial stats
 			randomCounter = nonRandomCounter = tieCounter = 0;
@@ -187,8 +213,8 @@ public class Test implements LearningEventListener {
 	public BackPropagation createLearningRule(){
 		BackPropagation learningRule = new BackPropagation();
 		learningRule.addListener(this);
-		learningRule.setLearningRate(0.1);
-		learningRule.setMaxError(0.001);
+		learningRule.setLearningRate(LEARNINGRATE);
+		learningRule.setMaxError(MAXERROR);
 		learningRule.setMaxIterations(MAXITER);
 		learningRule.setBatchMode(false);
 		return learningRule;
@@ -199,7 +225,7 @@ public class Test implements LearningEventListener {
 	 * @param neuralNet neural network
 	 * @param trainingSet test set
 	 */
-	public static double testNeuralNetwork(NeuralNetwork neuralNet, DataSet testSet) {
+	public static double testNeuralNetwork(NeuralNetwork<BackPropagation> neuralNet, DataSet testSet) {
 		double error = 0;
 		for(DataSetRow testSetRow : testSet.getRows()) {
 			neuralNet.setInput(testSetRow.getInput());
