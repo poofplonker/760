@@ -26,15 +26,14 @@ public class Test implements LearningEventListener {
 	final int NODESINHIDDEN = 3;
 	final int INPUTNODES = 1;
 	final int OUTPUTNODES = 1;
-	final int NUMTESTSPERDATASET = 5;
-	final int NUMDATASETS = 2;
+	final int NUMTESTSPERDATASET = 100;
+	final int NUMDATASETS = 500;
 	final int FILESIZE = 1000;
 	final int TESTINGSIZE = FILESIZE * 10;
 	final int MAXITER = 20000;
 	final double LEARNINGRATE = 0.1;
 	final double MAXERROR = 0.0005;
 
-	
 	//Vars used to output formated stats 
 	BufferedWriter bw;
 	boolean firstTime = false;
