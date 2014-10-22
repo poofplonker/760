@@ -21,9 +21,10 @@ java -cp "./:./Include/*" Test -prefix Datafiles/SinCos
 * -maxerror double
 * -outputfile string
 * -summaryfile string
-* -calculateinput [none|randtest|randall|zeroall]
-* -randfilefix string
-* -prefix string
+* -learnfile string
+* -learnrandfile string
+* -testfile string
+* -testrandfile string
 
 Also there are command line argument for the FileCreator program:
 * -n comma separated list of file sizes you which to create
@@ -31,7 +32,7 @@ Also there are command line argument for the FileCreator program:
 * -postfix
 * -randfix
 * -zerofix
-* -r create extra random column as well
-* -z create extra zero column as well
-* -rep repeat each value in the file this number of time
+* -r void create extra random column as well
+* -z void create extra zero column as well
+* -rep integer repeat each value in the file this number of time
 

@@ -26,8 +26,6 @@ public class Test implements LearningEventListener {
 	static final int OUTPUTNODES = 1;
 	static int NUMTESTSPERDATASET = 5;
 	static int NUMDATASETS = 3;
-	static int FILESIZE = 1000;
-	static int TESTINGSIZE = 0;
 	static int MAXITER = 20000;
 	static double LEARNINGRATE = 0.1;
 	static double MAXERROR = 0.0005;
@@ -51,11 +49,10 @@ public class Test implements LearningEventListener {
 	public static void main(String[] args) throws IOException {
 		String outputFile = "TestRunOutput.csv";
 		String summaryFile = "Summary.csv";
-		String prefix = "SinCos";
-		String randFilefix = "Rand";
-		String calculateInput = "none";
-		String postfix = ".csv";
-		String testFilefix = "Zero";
+		String learnFile = "SinCos1000.csv";
+		String learnRandFile = "SinCosRand1000.csv";
+		String testFile = "SinCos10000.csv";
+		String testRandFile = "SinCosRand10000.csv";
 		for(int i = 0; i < args.length; i += 2){
 			switch(args[i]){
 			case "-nodesinhidden":
@@ -66,12 +63,6 @@ public class Test implements LearningEventListener {
 				break;
 			case "-numdatasets":
 				NUMDATASETS = Integer.parseInt(args[i+1]);
-				break;
-			case "-filesize":
-				FILESIZE = Integer.parseInt(args[i+1]);
-				break;
-			case "-testingsize":
-				TESTINGSIZE = Integer.parseInt(args[i+1]);
 				break;
 			case "-maxiter":
 				MAXITER = Integer.parseInt(args[i+1]);
@@ -88,48 +79,24 @@ public class Test implements LearningEventListener {
 			case "-summaryfile":
 				summaryFile = args[i+1].trim();
 				break;
-			case "-calculateinput":
-				calculateInput = args[i+1].trim().toLowerCase();
+			case "-learnfile":
+				learnFile = args[i+1].trim();
 				break;
-			case "-randfilefix":
-				randFilefix = args[i+1].trim();
+			case "-learnrandfile":
+				learnRandFile = args[i+1].trim();
 				break;
-			case "-testfilefix":
-				testFilefix = args[i+1].trim();
+			case "-testfile":
+				testFile = args[i+1].trim();
 				break;
-			case "-prefix":
-				prefix = args[i+1].trim();
+			case "-testrandfile":
+				testRandFile = args[i+1].trim();
 				break;
 			default:
 				System.out.println("Did not recognise the command \""+args[i].trim()+"\".");
 			}
 		}
-		if(TESTINGSIZE == 0){
-			TESTINGSIZE = FILESIZE * 10;
-		}
-		
-		//Create the training data set for the non random case
-		switch(calculateInput){
-		case "zeroall":
-			FileCreator.createSinCosDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
-			FileCreator.createSinCosDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
-			FileCreator.createExtraZeroDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
-			break;
-		case "randall":
-			FileCreator.createSinCosDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
-			FileCreator.createSinCosDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
-			FileCreator.createExtraRandomDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
-			break;
-		case "randtest":
-			FileCreator.createExtraRandomDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
-			break;
-		case "none":
-			break;
-		case "default":
-			System.out.println("Invalid -calculateinput flag specified");
-		}
 
-		new Test().run(prefix, testFilefix, randFilefix, postfix, outputFile, summaryFile);
+		new Test().run(learnFile, learnRandFile, testFile, testRandFile, outputFile, summaryFile);
 	}
 	
 
@@ -139,28 +106,28 @@ public class Test implements LearningEventListener {
 	 * All data files names of format (prefix)(randfix)?(NumberIter)(postfix)
 	 * @throws IOException 
 	 */
-	public void run(String prefix, String testRandFix, String randomfix, String postfix, String outputFile, String outputSumFile) throws IOException {
+	public void run(String learnFile, String learnRandFile, String testFile, String testRandFile, String outputFile, String outputSumFile) throws IOException {
 		
 		//Create file streams to stats to
 		bw = new BufferedWriter(new FileWriter(outputFile));
 		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
 				
 		//Creating the verification files
-		DataSet testSetRand = DataSet.createFromFile(prefix + testRandFix + TESTINGSIZE + postfix,2,1, ",",false);
-		DataSet testSetNonRand = DataSet.createFromFile(prefix + TESTINGSIZE + postfix, 1, 1, ",", false);
+		DataSet testSetRand = DataSet.createFromFile(testRandFile,2,1, ",",false);
+		DataSet testSetNonRand = DataSet.createFromFile(testFile, 1, 1, ",", false);
 		
 		//Learn on data sets with different random data in them
 		for(int k = 0; k < NUMDATASETS; k++){
 			
 			//Create the random dataset
-			FileCreator.createExtraRandomDataFile(1, prefix+FILESIZE+postfix, prefix+randomfix+FILESIZE+postfix);
+			FileCreator.createExtraRandomDataFile(1, learnFile, learnRandFile);
 			
 			//Set initial stats
 			randomCounter = nonRandomCounter = tieCounter = 0;
 			
 			//Create the training sets used to train the data
-			DataSet trainingSet = DataSet.createFromFile(prefix + FILESIZE + postfix, 1,1, ",", false);
-			DataSet randomTrainingSet = DataSet.createFromFile(prefix + randomfix + FILESIZE + postfix, 2,1,",",false);
+			DataSet trainingSet = DataSet.createFromFile(learnFile, 1,1, ",", false);
+			DataSet randomTrainingSet = DataSet.createFromFile(learnRandFile, 2,1,",",false);
 
 			//Learn on the same data set with different initial weights
 			for(int j = 0; j < NUMTESTSPERDATASET; j++){
