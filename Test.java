@@ -23,16 +23,16 @@ import org.neuroph.util.TransferFunctionType;
  */
 public class Test implements LearningEventListener {
 	//Constant Parameters for the neural network
-	final int NODESINHIDDEN = 3;
-	final int INPUTNODES = 1;
-	final int OUTPUTNODES = 1;
-	final int NUMTESTSPERDATASET = 5;
-	final int NUMDATASETS = 3;
-	final int FILESIZE = 1000;
-	final int TESTINGSIZE = FILESIZE * 10;
-	final int MAXITER = 20000;
-	final double LEARNINGRATE = 0.1;
-	final double MAXERROR = 0.0005;
+	static final int NODESINHIDDEN = 3;
+	static final int INPUTNODES = 1;
+	static final int OUTPUTNODES = 1;
+	static int NUMTESTSPERDATASET = 5;
+	static int NUMDATASETS = 3;
+	static int FILESIZE = 1000;
+	static int TESTINGSIZE = 0;
+	static int MAXITER = 20000;
+	static double LEARNINGRATE = 0.1;
+	static double MAXERROR = 0.0005;
 
 	//Vars used to output formated stats 
 	BufferedWriter bw;
@@ -51,7 +51,57 @@ public class Test implements LearningEventListener {
 	 * Starts the running of the neural network
 	 */
 	public static void main(String[] args) throws IOException {
-		new Test().run("SinCos", "Rand", ".csv", "TestRunOutput.csv", "Summary.csv");
+		String outputFile = "TestRunOutput.csv";
+		String summaryFile = "Summary.csv";
+		String prefix = "SinCos";
+		String randFilefix = "Rand";
+		boolean calculateInput = true;
+		for(int i = 0; i < args.length; i += 2){
+			switch(args[i]){
+			case "-numtestsperdataset":
+				NUMTESTSPERDATASET = Integer.parseInt(args[i+1]);
+				break;
+			case "-numdatasets":
+				NUMDATASETS = Integer.parseInt(args[i+1]);
+				break;
+			case "-filesize":
+				FILESIZE = Integer.parseInt(args[i+1]);
+				break;
+			case "-testingsize":
+				TESTINGSIZE = Integer.parseInt(args[i+1]);
+				break;
+			case "-maxiter":
+				MAXITER = Integer.parseInt(args[i+1]);
+				break;
+			case "-learningrate":
+				LEARNINGRATE = Double.parseDouble(args[i+1]);
+				break;
+			case "-maxerror":
+				MAXERROR = Double.parseDouble(args[i+1]);
+				break;
+			case "-outputfile":
+				outputFile = args[i+1].trim();
+				break;
+			case "-summaryfile":
+				summaryFile = args[i+1].trim();
+				break;
+			case "-calculateinput":
+				calculateInput = Boolean.parseBoolean(args[i+1]);
+				break;
+			case "-randfilefix":
+				randFilefix = args[i+1].trim();
+				break;
+			case "-prefix":
+				prefix = args[i+1].trim();
+				break;
+			default:
+				System.out.println("Did not recognise the command \""+args[i].trim()+"\".");
+			}
+		}
+		if(TESTINGSIZE == 0){
+			TESTINGSIZE = FILESIZE * 10;
+		}
+		new Test().run(prefix, randFilefix, ".csv", outputFile, summaryFile, calculateInput);
 	}
 	
 	/**
@@ -114,15 +164,17 @@ public class Test implements LearningEventListener {
 	 * All data files names of format (prefix)(randfix)?(NumberIter)(postfix)
 	 * @throws IOException 
 	 */
-	public void run(String prefix, String randomfix, String postfix, String outputFile, String outputSumFile) throws IOException {
+	public void run(String prefix, String randomfix, String postfix, String outputFile, String outputSumFile, boolean calculateInput) throws IOException {
 		
 		//Create file streams to stats to
 		bw = new BufferedWriter(new FileWriter(outputFile));
 		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
 		
 		//Create the training data set for the non random case
-		createDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
-		createDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
+		if(calculateInput){
+			createDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
+			createDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
+		}
 		
 		//Creating the verification files
 		createRandomDataFile(1, prefix, randomfix, TESTINGSIZE + postfix);
