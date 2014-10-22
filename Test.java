@@ -1,6 +1,4 @@
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -23,7 +21,7 @@ import org.neuroph.util.TransferFunctionType;
  */
 public class Test implements LearningEventListener {
 	//Constant Parameters for the neural network
-	static final int NODESINHIDDEN = 3;
+	static int NODESINHIDDEN = 3;
 	static final int INPUTNODES = 1;
 	static final int OUTPUTNODES = 1;
 	static int NUMTESTSPERDATASET = 5;
@@ -55,9 +53,14 @@ public class Test implements LearningEventListener {
 		String summaryFile = "Summary.csv";
 		String prefix = "SinCos";
 		String randFilefix = "Rand";
-		boolean calculateInput = true;
+		String calculateInput = "none";
+		String postfix = ".csv";
+		String testFilefix = "Zero";
 		for(int i = 0; i < args.length; i += 2){
 			switch(args[i]){
+			case "-nodesinhidden":
+				NODESINHIDDEN = Integer.parseInt(args[i+1]);
+				break;
 			case "-numtestsperdataset":
 				NUMTESTSPERDATASET = Integer.parseInt(args[i+1]);
 				break;
@@ -86,10 +89,13 @@ public class Test implements LearningEventListener {
 				summaryFile = args[i+1].trim();
 				break;
 			case "-calculateinput":
-				calculateInput = Boolean.parseBoolean(args[i+1]);
+				calculateInput = args[i+1].trim().toLowerCase();
 				break;
 			case "-randfilefix":
 				randFilefix = args[i+1].trim();
+				break;
+			case "-testfilefix":
+				testFilefix = args[i+1].trim();
 				break;
 			case "-prefix":
 				prefix = args[i+1].trim();
@@ -101,62 +107,31 @@ public class Test implements LearningEventListener {
 		if(TESTINGSIZE == 0){
 			TESTINGSIZE = FILESIZE * 10;
 		}
-		new Test().run(prefix, randFilefix, ".csv", outputFile, summaryFile, calculateInput);
+		
+		//Create the training data set for the non random case
+		switch(calculateInput){
+		case "zeroall":
+			FileCreator.createSinCosDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
+			FileCreator.createSinCosDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
+			FileCreator.createExtraZeroDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
+			break;
+		case "randall":
+			FileCreator.createSinCosDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
+			FileCreator.createSinCosDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
+			FileCreator.createExtraRandomDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
+			break;
+		case "randtest":
+			FileCreator.createExtraRandomDataFile(1, prefix+TESTINGSIZE + postfix, prefix+testFilefix+TESTINGSIZE + postfix);
+			break;
+		case "none":
+			break;
+		case "default":
+			System.out.println("Invalid -calculateinput flag specified");
+		}
+
+		new Test().run(prefix, testFilefix, randFilefix, postfix, outputFile, summaryFile);
 	}
 	
-	/**
-	 * Takes a file of comma separated data and add a random column. Then saves this file.
-	 * @param beforeColumn The random data will be inserted before this column.
-	 * @param prefix The string prefix for both random and non random data.
-	 * @param randomfix The random part of the string. Goes after prefix.
-	 * @param postfix The end of the file name for both random and non random data.
-	 */
-	public static void createRandomDataFile(int beforeColumn, String prefix, String randomfix, String postfix){
-		try {
-			BufferedReader nonRandomReader = new BufferedReader(new FileReader(prefix+postfix));
-			BufferedWriter randomWriter = new BufferedWriter(new FileWriter(prefix+randomfix+postfix));
-			
-			String inputLine = null;
-			while ((inputLine = nonRandomReader.readLine()) != null) {
-				int splitIndex = 0;
-				for(int i = 0; i < beforeColumn; i++){
-					splitIndex = inputLine.indexOf(",", splitIndex+1);
-				}
-				String output = inputLine.substring(0, splitIndex+1) + (Math.random()*2-1) + inputLine.substring(splitIndex, inputLine.length());
-				randomWriter.write(output+"\n");
-			}
-			
-			nonRandomReader.close();
-			randomWriter.close();
-		} catch (IOException e) {
-			System.out.println("Error generating dataset file.");
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Creates a file with sin(x)cos(2x) and data between 0 and 2pi in the format
-	 *  x,sin(x)cos(2x)
-	 * @param size the number of steps between 0 and 2pi
-	 * @param file The name of the file the data will be stored in.
-	 */
-	public static void createDataSetFile(int size, String file){
-		try {
-			BufferedWriter rw = new BufferedWriter(new FileWriter(file));
-
-			double x = 0;
-			double step = (2*Math.PI)/size;
-			for(int i = 0 ; i < size; i++){
-				rw.write(x+","+(Math.sin(x)*Math.cos(2*x))+"\n");
-				x += step;
-			}
-			rw.close();
-
-		} catch (IOException e) {
-			System.out.println("Error generating dataset file.");
-			e.printStackTrace();
-		}
-	}
 
 	/**
 	 * Runs the neural net experiment multiple times on random data sets and initial weights
@@ -164,28 +139,21 @@ public class Test implements LearningEventListener {
 	 * All data files names of format (prefix)(randfix)?(NumberIter)(postfix)
 	 * @throws IOException 
 	 */
-	public void run(String prefix, String randomfix, String postfix, String outputFile, String outputSumFile, boolean calculateInput) throws IOException {
+	public void run(String prefix, String testRandFix, String randomfix, String postfix, String outputFile, String outputSumFile) throws IOException {
 		
 		//Create file streams to stats to
 		bw = new BufferedWriter(new FileWriter(outputFile));
 		BufferedWriter brsum = new BufferedWriter(new FileWriter(outputSumFile));
-		
-		//Create the training data set for the non random case
-		if(calculateInput){
-			createDataSetFile(FILESIZE, prefix + FILESIZE + postfix);
-			createDataSetFile(TESTINGSIZE, prefix + TESTINGSIZE + postfix);
-		}
-		
+				
 		//Creating the verification files
-		createRandomDataFile(1, prefix, randomfix, TESTINGSIZE + postfix);
-		DataSet testSetRand = DataSet.createFromFile(prefix + randomfix + TESTINGSIZE + postfix,2,1, ",",false);
+		DataSet testSetRand = DataSet.createFromFile(prefix + testRandFix + TESTINGSIZE + postfix,2,1, ",",false);
 		DataSet testSetNonRand = DataSet.createFromFile(prefix + TESTINGSIZE + postfix, 1, 1, ",", false);
 		
 		//Learn on data sets with different random data in them
 		for(int k = 0; k < NUMDATASETS; k++){
 			
 			//Create the random dataset
-			createRandomDataFile(1, prefix, randomfix, FILESIZE + postfix);
+			FileCreator.createExtraRandomDataFile(1, prefix+FILESIZE+postfix, prefix+randomfix+FILESIZE+postfix);
 			
 			//Set initial stats
 			randomCounter = nonRandomCounter = tieCounter = 0;
