@@ -6,9 +6,15 @@ You need Test.java and all the files in the include folder then to compile run (
 
 javac -cp "Include/*" FileCreator.java Test.java
 
+Then to create the files you need to run the application use:
+
+java FileCreator -n 1000;10000 -r
+
+If you would like to test with something other than the default configuration then use the parameters specified below to create the files and then use more command line arguments to specify the files to use in Test.
+
 Then to run use (note you might need to use : instead of ;):
 
-java -cp "./:./Include/*" Test -prefix Datafiles/SinCos
+java -cp "./:./Include/*" Test
 
 ##Command line arguments
 * -nodesinhidden int
